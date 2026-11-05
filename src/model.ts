@@ -35,6 +35,14 @@ export type Phase =
   | { type: 'config'; index: number; draft: string | null }
   | { type: 'add'; step: AddStep; source: string; skill: string; agents: string; scopeIndex: number };
 
+export interface ScanProgress {
+  label: string;
+  completed: number;
+  total: number;
+  current: string;
+  found: number;
+}
+
 export interface AppModel {
   phase: Phase;
   configPath: string;
@@ -48,6 +56,7 @@ export interface AppModel {
   notice: string;
   logText: string;
   updates: Record<string, UpdateState>;
+  scan: ScanProgress | null;
 }
 
 export interface RefreshResult {
@@ -75,9 +84,10 @@ export function initialModel(configPath: string): AppModel {
     scope: { kind: 'all' },
     query: '',
     selected: 0,
-    notice: 'Loading…',
+    notice: 'Scanning…',
     logText: '',
     updates: {},
+    scan: { label: 'Finding projects', completed: 0, total: 0, current: '', found: 0 },
   };
 }
 
@@ -197,6 +207,7 @@ export function withRefresh(model: AppModel, data: RefreshResult): AppModel {
     skills: data.skills,
     scope,
     updates: {},
+    scan: null,
     logText: data.log || model.logText,
     notice: refreshNotice(data),
   };

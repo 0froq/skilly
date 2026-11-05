@@ -1,13 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { skillLineText } from './text.js';
+import { stripNpmNoise } from './text.js';
 
-test('skill rows keep the scope visible in a narrow column', () => {
-  const line = skillLineText('↑', 'global-skill', 'global', 28);
-  assert.ok(line.length <= 28);
-  assert.match(line, /global-skill/);
-  assert.match(line, /global$/);
-  const tight = skillLineText('?', 'project-skill', '/tmp/very/long/project', 24);
-  assert.ok(tight.length <= 24);
-  assert.match(tight, /project$/);
+test('npm warn and notice lines are hidden from the scan log', () => {
+  const noisy = [
+    'npm warn Unknown env config "npm-globalconfig". This will stop working in the next major version of npm.',
+    'npm warn Unknown env config "verify-deps-before-run".',
+    'npm notice New major version of npm available!',
+    '↑ alpha has an update',
+    '[{"name":"keep-me"}]',
+  ].join('\n');
+  const cleaned = stripNpmNoise(noisy);
+  assert.equal(cleaned.includes('npm warn'), false);
+  assert.equal(cleaned.includes('npm notice'), false);
+  assert.match(cleaned, /↑ alpha has an update/);
+  assert.match(cleaned, /keep-me/);
 });

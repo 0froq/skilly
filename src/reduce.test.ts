@@ -37,6 +37,7 @@ function model(skills: SkillRow[]): AppModel {
     notice: '',
     logText: '',
     updates: {},
+    scan: null,
   };
 }
 

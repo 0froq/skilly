@@ -10,7 +10,7 @@ import { parseCheckOutput } from './parse.js';
 import { blankKey, reduceKey, type Effect, type KeyInfo, type KeyPress } from './reduce.js';
 import { formatCommandLine, runSkills } from './skills-cli.js';
 import { checkTargets, projectCwd, updateAllTargets } from './targets.js';
-import { appendLog, firstLine } from './text.js';
+import { appendLog, firstLine, stripNpmNoise } from './text.js';
 import { Screen } from './ui.js';
 
 export function App(props: { configPath: string; version: string }) {
@@ -44,14 +44,20 @@ function Shell(props: { configPath: string; version: string }) {
 
   const noteChunk = (job: number, chunk: string): void => {
     if (!alive(job)) return;
-    setModel((current) => ({ ...current, logText: appendLog(current.logText, chunk) }));
+    const cleaned = stripNpmNoise(chunk);
+    if (!cleaned.trim()) return;
+    setModel((current) => ({ ...current, logText: appendLog(current.logText, cleaned) }));
   };
 
   const finishRefresh = async (job: number, signal: AbortSignal, prefix: string | null): Promise<void> => {
     if (!alive(job)) return;
     const data = await refreshAll(props.configPath, {
       signal,
-      onChunk: (chunk) => noteChunk(job, chunk),
+      onProgress: (scan) => {
+        if (!alive(job)) return;
+        const notice = scan.total > 0 ? `${scan.label} ${scan.completed}/${scan.total}` : scan.label;
+        setModel((current) => ({ ...current, scan, notice }));
+      },
     });
     if (!alive(job) || data.aborted) return;
     setModel((current) => {
@@ -66,7 +72,13 @@ function Shell(props: { configPath: string; version: string }) {
 
   const runRefresh = async (): Promise<void> => {
     const { job, signal } = begin();
-    setModel((current) => ({ ...current, phase: { type: 'busy' }, notice: 'Refreshing…', logText: '' }));
+    setModel((current) => ({
+      ...current,
+      phase: { type: 'busy' },
+      notice: 'Scanning…',
+      logText: '',
+      scan: { label: 'Finding projects', completed: 0, total: 0, current: '', found: 0 },
+    }));
     await finishRefresh(job, signal, null);
   };
 
@@ -101,7 +113,13 @@ function Shell(props: { configPath: string; version: string }) {
         case 'save-config': {
           await writeConfig(props.configPath, effect.globs);
           const saved = begin();
-          setModel((current) => ({ ...current, phase: { type: 'busy' }, notice: 'Reloading…', logText: '' }));
+          setModel((current) => ({
+            ...current,
+            phase: { type: 'busy' },
+            notice: 'Scanning…',
+            logText: '',
+            scan: { label: 'Finding projects', completed: 0, total: 0, current: '', found: 0 },
+          }));
           await finishRefresh(saved.job, saved.signal, 'Saved');
           return;
         }
@@ -114,6 +132,7 @@ function Shell(props: { configPath: string; version: string }) {
       setModel((current) => ({
         ...current,
         phase: { type: 'browse' },
+        scan: null,
         notice: error instanceof Error ? error.message : 'Command failed',
       }));
     }

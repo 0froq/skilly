@@ -30,6 +30,8 @@ project_globs = ["~/code/0froq/**"]
 
 - 全局：`npx skills list -g --json`（`~/.agents/skills`）
 - 项目：在每个发现的目录里执行 `npx skills list --json`
+- 左侧按 `global` 和项目路径分组。状态标记留在技能行上（`?` 未跟踪，`!` 缺失，`↑` 有更新）
+- 扫描时只显示进度（当前路径和计数），不把 npm 警告或 list JSON 打到界面上
 
 `SKILLY_SKILLS_BIN` 可以指向本机的 `skills` 可执行文件，用来代替 `npx --yes skills`。
 
@@ -57,7 +59,7 @@ project_globs = ["~/code/0froq/**"]
 
 ## English
 
-skilly is a terminal UI over the Vercel skills CLI. It lists global skills and project skills discovered from `project_globs`, shows tracked status and whether a skill folder is a symlink or a real directory, and runs check, update, remove, and add through `npx skills`. It never passes `--copy`. The CLI itself copies only when every selected agent shares one directory, because there is no second path to symlink.
+skilly is a terminal UI over the Vercel skills CLI. It lists global skills and project skills discovered from `project_globs`, grouped under `global` and each project path. The scan view shows progress instead of npm warnings or list JSON. It shows tracked status and whether a skill folder is a symlink or a real directory, and runs check, update, remove, and add through `npx skills`. It never passes `--copy`. The CLI itself copies only when every selected agent shares one directory, because there is no second path to symlink.
 
 ## License
 

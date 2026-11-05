@@ -40,6 +40,7 @@ function childEnv(): NodeJS.ProcessEnv {
     NO_UPDATE_NOTIFIER: '1',
     npm_config_update_notifier: 'false',
     npm_config_fund: 'false',
+    npm_config_loglevel: 'error',
   };
 }
 

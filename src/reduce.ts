@@ -353,7 +353,7 @@ function patchAdd(model: AppModel, patch: Partial<Extract<Phase, { type: 'add' }
 }
 
 function busy(model: AppModel, noticeText: string, effect: Effect): KeyResult {
-  return { model: { ...model, phase: { type: 'busy' }, notice: noticeText, logText: '' }, effect };
+  return { model: { ...model, phase: { type: 'busy' }, notice: noticeText, logText: '', scan: null }, effect };
 }
 
 function notice(model: AppModel, text: string): KeyResult {

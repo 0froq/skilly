@@ -14,17 +14,6 @@ export function shortenPath(fullPath: string, home = homedir()): string {
   return fullPath;
 }
 
-export function skillLineText(mark: string, name: string, scope: string, width: number): string {
-  if (width <= 0) return '';
-  const chrome = 3;
-  const scopeWidth = Math.min(scope.length, Math.max(0, Math.min(18, width - chrome - 4)));
-  const nameWidth = Math.max(0, width - chrome - scopeWidth);
-  const shownScope = clipStart(scope, scopeWidth);
-  const shownName = clipEnd(name, nameWidth).padEnd(nameWidth);
-  const line = `${mark} ${shownName} ${shownScope}`;
-  return line.length <= width ? line : line.slice(0, width);
-}
-
 export function clipEnd(text: string, max: number): string {
   if (max <= 0) return '';
   if (text.length <= max) return text;
@@ -55,4 +44,17 @@ export function tailLines(text: string, maxLines: number): string[] {
 export function firstLine(text: string): string {
   const line = stripAnsi(text).split('\n').find((item) => item.trim().length > 0);
   return line?.trim() ?? '';
+}
+
+export function isNpmNoiseLine(line: string): boolean {
+  const plain = stripAnsi(line).trim();
+  return /^npm (?:warn|notice)\b/i.test(plain);
+}
+
+export function stripNpmNoise(text: string): string {
+  return text
+    .split('\n')
+    .filter((line) => !isNpmNoiseLine(line))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n');
 }

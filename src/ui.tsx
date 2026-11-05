@@ -1,5 +1,6 @@
 import { Box, Text } from 'ink';
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { groupSkills, listWindow, statusMark } from './groups.js';
 import { layoutHint, layoutLabel } from './layout.js';
 import { FOOTER, KEY_HELP } from './help.js';
 import {
@@ -11,7 +12,7 @@ import {
   type SkillRow,
 } from './model.js';
 import { scopeChoices } from './targets.js';
-import { clipEnd, clipStart, shortenPath, skillLineText, tailLines } from './text.js';
+import { clipEnd, clipStart, shortenPath, stripNpmNoise, tailLines } from './text.js';
 
 export function Screen(props: { model: AppModel; version: string; columns: number; rows: number }) {
   const phase = props.model.phase.type;
@@ -22,9 +23,11 @@ export function Screen(props: { model: AppModel; version: string; columns: numbe
       return <ConfigScreen {...props} />;
     case 'add':
       return <AddScreen {...props} />;
-    case 'log':
-    case 'busy':
     case 'loading':
+      return <ScanScreen {...props} />;
+    case 'busy':
+      return props.model.scan ? <ScanScreen {...props} /> : <LogScreen {...props} />;
+    case 'log':
       return <LogScreen {...props} />;
     case 'browse':
     case 'filter':
@@ -119,8 +122,42 @@ function Field(props: { label: string; active: boolean; value: string; hint: str
   );
 }
 
+const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+
+function useSpinner(): string {
+  const [frame, setFrame] = useState(0);
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setFrame((current) => (current + 1) % SPINNER.length);
+    }, 80);
+    return () => {
+      clearInterval(timer);
+    };
+  }, []);
+  return SPINNER[frame] ?? '⠋';
+}
+
+function ScanScreen(props: { model: AppModel; version: string; columns: number; rows: number }) {
+  const spin = useSpinner();
+  const scan = props.model.scan;
+  const current = scan?.current ? shortenPath(scan.current) : '…';
+  const count = scan && scan.total > 0 ? `${scan.completed} / ${scan.total}` : null;
+  return (
+    <Frame {...props} title="Scanning">
+      <Text color="cyan">
+        {spin} {scan?.label ?? 'Scanning skills'}
+      </Text>
+      {count ? <Text> {count}</Text> : null}
+      <Text wrap="truncate"> {clipEnd(current, Math.max(8, props.columns - 4))}</Text>
+      <Text color="gray"> {scan?.found ?? 0} skills</Text>
+      <Text> </Text>
+      <Text color="gray">ctrl+c aborts</Text>
+    </Frame>
+  );
+}
+
 function LogScreen(props: { model: AppModel; version: string; columns: number; rows: number }) {
-  const lines = tailLines(props.model.logText, Math.max(4, props.rows - 5));
+  const lines = tailLines(stripNpmNoise(props.model.logText), Math.max(4, props.rows - 5));
   const hint =
     props.model.phase.type === 'log' ? 'esc back · q quit' : 'working… ctrl+c aborts';
   return (
@@ -141,13 +178,13 @@ function BrowseScreen(props: { model: AppModel; version: string; columns: number
   const { model, columns, rows } = props;
   const stacked = columns < 76;
   const bodyHeight = Math.max(6, rows - 4);
-  const listWidth = stacked ? columns : Math.max(28, Math.min(46, Math.floor(columns * 0.42)));
+  const listWidth = stacked ? columns : Math.max(28, Math.min(42, Math.floor(columns * 0.36)));
   const listHeight = stacked ? Math.max(4, Math.floor(bodyHeight * 0.5)) : bodyHeight;
   const visible = visibleSkills(model);
   const selected = selectedSkill(model);
   const inner = Math.max(1, listHeight - 2);
-  const start = scrollStart(model.selected, visible.length, inner);
-  const windowRows = visible.slice(start, start + inner);
+  const entries = groupSkills(visible);
+  const windowRows = listWindow(entries, model.selected, inner);
   const scope = scopeText(model);
 
   return (
@@ -163,15 +200,21 @@ function BrowseScreen(props: { model: AppModel; version: string; columns: number
           borderColor="gray"
         >
           {windowRows.length === 0 ? <Text color="gray"> No skills</Text> : null}
-          {windowRows.map((skill, offset) => (
-            <SkillLine
-              key={skill.id}
-              skill={skill}
-              selected={start + offset === model.selected}
-              width={Math.max(10, (stacked ? columns : listWidth) - 2)}
-              outdated={model.updates[skill.id] === 'outdated'}
-            />
-          ))}
+          {windowRows.map((entry) =>
+            entry.kind === 'header' ? (
+              <Text key={entry.id} bold color="cyan" wrap="truncate">
+                {clipEnd(` ${entry.label}`, Math.max(10, (stacked ? columns : listWidth) - 2))}
+              </Text>
+            ) : (
+              <SkillLine
+                key={entry.skill.id}
+                skill={entry.skill}
+                selected={entry.skillIndex === model.selected}
+                width={Math.max(10, (stacked ? columns : listWidth) - 2)}
+                outdated={model.updates[entry.skill.id] === 'outdated'}
+              />
+            ),
+          )}
         </Box>
         <Box
           flexGrow={1}
@@ -212,9 +255,9 @@ function Header(props: { model: AppModel; version: string; columns: number; scop
 }
 
 function SkillLine(props: { skill: SkillRow; selected: boolean; width: number; outdated: boolean }) {
-  const mark = props.outdated ? '↑' : props.skill.status === 'untracked' ? '?' : props.skill.status === 'missing' ? '!' : ' ';
-  const scope = props.skill.scope === 'global' ? 'global' : shortenPath(props.skill.projectPath ?? '');
-  const line = skillLineText(mark, props.skill.name, scope, Math.max(8, props.width - 1));
+  const mark = statusMark(props.skill.status, props.outdated);
+  const name = clipEnd(props.skill.name, Math.max(1, props.width - 2));
+  const line = `${mark} ${name}`.padEnd(props.width).slice(0, props.width);
   return (
     <Text
       wrap="truncate"
