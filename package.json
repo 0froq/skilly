@@ -1,0 +1,46 @@
+{
+  "name": "skilly",
+  "version": "0.1.0",
+  "description": "Terminal UI for managing AI agent skills via npx skills",
+  "type": "module",
+  "bin": {
+    "skilly": "dist/cli.js"
+  },
+  "scripts": {
+    "skilly": "tsx src/cli.tsx",
+    "dev": "tsx src/cli.tsx",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test src/*.test.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0froq/skilly.git"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "dependencies": {
+    "fast-glob": "^3.3.3",
+    "ink": "^8.0.0",
+    "react": "^19.3.1",
+    "react-devtools-core": "^6.1.5",
+    "smol-toml": "^1.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "@types/react": "^19.3.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "pnpm@10.33.4",
+  "pnpm": {
+    "onlyBuiltDependencies": ["esbuild"]
+  }
+}
