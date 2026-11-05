@@ -2,9 +2,10 @@ import { homedir } from 'node:os';
 import { WriteStream } from 'node:tty';
 import { useApp, useInput, useStdout, Text } from 'ink';
 import { Component, useEffect, useRef, useState, type ReactNode } from 'react';
-import { buildAddArgs, buildCheckArgs, buildRemoveArgs, buildUpdateArgs } from './commands.js';
+import { buildAddArgs, buildCheckArgs, buildUpdateArgs } from './commands.js';
 import { writeConfig } from './config.js';
 import { refreshAll } from './load.js';
+import { performRemoval, withRemoval } from './removal.js';
 import { applyCheck, initialModel, withRefresh, type AppModel } from './model.js';
 import { parseCheckOutput } from './parse.js';
 import { blankKey, reduceKey, type Effect, type KeyInfo, type KeyPress } from './reduce.js';
@@ -105,7 +106,7 @@ function Shell(props: { configPath: string; version: string }) {
           await runUpdates(snapshot, updateAllTargets(snapshot), 'Updated');
           return;
         case 'remove':
-          await runRemove(effect);
+          await runRemove(effect, snapshot);
           return;
         case 'add':
           await runAdd(effect);
@@ -208,22 +209,23 @@ function Shell(props: { configPath: string; version: string }) {
     await finishRefresh(job, signal, problems[0] ?? okNotice);
   };
 
-  const runRemove = async (effect: Extract<Effect, { type: 'remove' }>): Promise<void> => {
+  const runRemove = async (effect: Extract<Effect, { type: 'remove' }>, snapshot: AppModel): Promise<void> => {
     const { job, signal } = begin();
-    setModel((current) => ({ ...current, phase: { type: 'busy' }, notice: `Removing ${effect.skill.name}…`, logText: '' }));
-    const args = buildRemoveArgs({ global: effect.skill.scope === 'global', name: effect.skill.name });
-    const cwd = effect.skill.scope === 'global' ? homedir() : (effect.skill.projectPath ?? homedir());
-    const header = `\n$ ${formatCommandLine(args, cwd)}\n`;
-    noteChunk(job, header);
-    const result = await runSkills(args, {
-      cwd,
+    setModel((current) => ({
+      ...current,
+      phase: { type: 'busy' },
+      scan: null,
+      notice: `Removing ${effect.skill.name}…`,
+      logText: '',
+    }));
+    const outcome = await performRemoval({
+      skill: effect.skill,
+      skills: snapshot.skills,
+      home: homedir(),
       signal,
-      timeoutMs: 120_000,
-      onChunk: (chunk) => noteChunk(job, chunk),
     });
-    if (!alive(job) || result.aborted) return;
-    const prefix = result.code === 0 ? `Removed ${effect.skill.name}` : firstLine(result.stderr) || 'Remove failed';
-    await finishRefresh(job, signal, prefix);
+    if (!alive(job)) return;
+    setModel((current) => withRemoval(current, outcome.skills, outcome.notice, outcome.log));
   };
 
   const runAdd = async (effect: Extract<Effect, { type: 'add' }>): Promise<void> => {

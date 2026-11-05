@@ -258,7 +258,7 @@ function Header(props: { model: AppModel; version: string; columns: number; scop
           {props.model.query ? `  /${props.model.query}` : ''}
         </Text>
       </Text>
-      <Text color={props.model.notice.includes('error') ? 'red' : 'gray'} wrap="truncate">
+      <Text color={/error|not removed|still installed|could not verify/i.test(props.model.notice) ? 'red' : 'gray'} wrap="truncate">
         {clipEnd(props.model.notice, props.columns)}
       </Text>
     </Box>

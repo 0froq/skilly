@@ -107,6 +107,34 @@ export async function refreshAll(
   };
 }
 
+export async function skillsFromListResult(
+  options: { global: boolean; cwd: string },
+  result: Awaited<ReturnType<typeof runSkills>>,
+): Promise<{ skills: SkillRow[]; error: string | null }> {
+  const task: ListTask = {
+    global: options.global,
+    cwd: options.cwd,
+    projectPath: options.global ? null : options.cwd,
+    label: options.global ? 'global' : options.cwd,
+  };
+  if (result.aborted) return { skills: [], error: 'aborted' };
+  const outcome = await finishTask(task, result);
+  return { skills: outcome.skills, error: outcome.errors[0] ?? null };
+}
+
+export async function listScopeSkills(options: {
+  global: boolean;
+  cwd: string;
+  signal?: AbortSignal;
+}): Promise<{ skills: SkillRow[]; error: string | null }> {
+  const result = await runSkills(buildListArgs(options.global), {
+    cwd: options.cwd,
+    signal: options.signal,
+    timeoutMs: 90_000,
+  });
+  return skillsFromListResult(options, result);
+}
+
 async function finishTask(
   task: ListTask,
   result: Awaited<ReturnType<typeof runSkills>>,
