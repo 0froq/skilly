@@ -14,6 +14,7 @@ export const KEY_HELP: readonly KeyHelp[] = [
   { keys: 'd', label: 'Remove selected skill (confirm)' },
   { keys: 'a', label: 'Add a skill (symlink, no --copy)' },
   { keys: 'g', label: 'Edit project globs' },
+  { keys: '[ / ]', label: 'Scroll the SKILL.md body' },
   { keys: 'l', label: 'Last command output' },
   { keys: '?', label: 'Help' },
   { keys: 'q', label: 'Quit' },

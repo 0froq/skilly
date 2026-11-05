@@ -1,5 +1,6 @@
-import { Box, Text } from 'ink';
-import { useEffect, useState, type ReactNode } from 'react';
+import { Box, Text, useInput } from 'ink';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { readSkillDocument, wrapText } from './blurb.js';
 import { groupSkills, listWindow, statusMark } from './groups.js';
 import { layoutHint, layoutLabel } from './layout.js';
 import { FOOTER, KEY_HELP } from './help.js';
@@ -224,7 +225,17 @@ function BrowseScreen(props: { model: AppModel; version: string; columns: number
           borderColor="gray"
           paddingX={1}
         >
-          {selected ? <Detail skill={selected} model={model} /> : <EmptyDetail model={model} />}
+          {selected ? (
+            <Detail
+              skill={selected}
+              model={model}
+              rows={Math.max(8, (stacked ? Math.max(6, bodyHeight - listHeight) : listHeight) - 2)}
+              columns={Math.max(24, (stacked ? columns : columns - listWidth) - 4)}
+              scrollKeys={model.phase.type !== 'filter'}
+            />
+          ) : (
+            <EmptyDetail model={model} />
+          )}
         </Box>
       </Box>
       <Footer model={model} columns={columns} selected={selected} />
@@ -269,33 +280,95 @@ function SkillLine(props: { skill: SkillRow; selected: boolean; width: number; o
   );
 }
 
-function Detail(props: { skill: SkillRow; model: AppModel }) {
+function Detail(props: { skill: SkillRow; model: AppModel; rows: number; columns: number; scrollKeys: boolean }) {
   const hint = layoutHint(props.skill.layout);
+  const valueWidth = Math.max(8, props.columns - 10);
   const fields: Array<[string, string]> = [
     ['scope', props.skill.scope],
-    ['project', props.skill.projectPath ? shortenPath(props.skill.projectPath) : '—'],
     ['path', props.skill.path ? shortenPath(props.skill.path) : '—'],
     ['layout', layoutLabel(props.skill.layout)],
-    ['agents', props.skill.agents.length > 0 ? props.skill.agents.join(', ') : '—'],
     ['source', props.skill.source ?? '—'],
-    ['url', props.skill.sourceUrl ?? '—'],
-    ['type', props.skill.sourceType ?? '—'],
-    ['status', props.skill.status],
-    ['update', updateLabel(props.model.updates[props.skill.id])],
+    ['agents', props.skill.agents.length > 0 ? props.skill.agents.join(', ') : '—'],
+    ['status', `${props.skill.status} · ${updateLabel(props.model.updates[props.skill.id])}`],
   ];
+  const [body, setBody] = useState<string | null>(null);
+  const [readState, setReadState] = useState<'loading' | 'missing' | 'ready'>('loading');
+  const [offset, setOffset] = useState(0);
+  const chrome = 1 + (props.skill.blurb ? 1 : 0) + fields.length + (hint ? 1 : 0) + 2;
+  const bodyRows = Math.max(3, props.rows - chrome);
+  const wrapped = body ? wrapText(body, props.columns) : [];
+  const maxOffset = Math.max(0, wrapped.length - bodyRows);
+  const shownOffset = Math.min(offset, maxOffset);
+  const linesRef = useRef(wrapped);
+  const rowsRef = useRef(bodyRows);
+  linesRef.current = wrapped;
+  rowsRef.current = bodyRows;
+
+  useEffect(() => {
+    let cancelled = false;
+    setOffset(0);
+    setBody(null);
+    setReadState('loading');
+    void readSkillDocument(props.skill.path).then((doc) => {
+      if (cancelled) return;
+      if (!doc) {
+        setReadState('missing');
+        setBody(null);
+        return;
+      }
+      setReadState('ready');
+      setBody(doc.body);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [props.skill.id, props.skill.path]);
+
+  useInput(
+    (input) => {
+      const max = Math.max(0, linesRef.current.length - rowsRef.current);
+      const page = Math.max(1, rowsRef.current - 1);
+      if (input === ']') setOffset((current) => Math.min(max, current + 1));
+      if (input === '[') setOffset((current) => Math.max(0, current - 1));
+      if (input === '}') setOffset((current) => Math.min(max, current + page));
+      if (input === '{') setOffset((current) => Math.max(0, current - page));
+    },
+    { isActive: props.scrollKeys },
+  );
+
+  const view = wrapped.slice(shownOffset, shownOffset + bodyRows);
+  const bodyLabel =
+    readState === 'loading'
+      ? 'Reading SKILL.md…'
+      : readState === 'missing'
+        ? 'SKILL.md not on disk'
+        : body
+          ? 'SKILL.md'
+          : 'No body after frontmatter';
+
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" height={props.rows} overflow="hidden">
       <Text bold wrap="truncate">
-        {props.skill.name}
+        {clipEnd(props.skill.name, props.columns)}
       </Text>
-      {props.skill.blurb ? <Text color="gray">{props.skill.blurb}</Text> : null}
+      {props.skill.blurb ? <Text color="gray" wrap="truncate">{clipEnd(props.skill.blurb, props.columns)}</Text> : null}
       {fields.map(([label, value]) => (
-        <Text key={label} wrap="wrap">
+        <Text key={label} wrap="truncate">
           <Text color="gray">{label.padEnd(8)}</Text>
-          {value}
+          {clipEnd(value, valueWidth)}
         </Text>
       ))}
-      {hint ? <Text color="yellow">{hint}</Text> : null}
+      {hint ? <Text color="yellow" wrap="truncate">{clipEnd(hint, props.columns)}</Text> : null}
+      <Text color="gray"> </Text>
+      <Text color="cyan" wrap="truncate">
+        {bodyLabel}
+        {wrapped.length > bodyRows ? `  ${shownOffset + 1}–${Math.min(wrapped.length, shownOffset + bodyRows)}/${wrapped.length}  [ ]` : ''}
+      </Text>
+      {view.map((line, index) => (
+        <Text key={`${shownOffset + index}:${line}`} wrap="truncate">
+          {line.length > 0 ? line : ' '}
+        </Text>
+      ))}
     </Box>
   );
 }
