@@ -402,7 +402,10 @@ function Footer(props: { model: AppModel; columns: number; selected: SkillRow | 
   if (props.model.phase.type === 'filter') text = `filter: ${props.model.query}   enter apply · esc cancel`;
   if (props.model.phase.type === 'confirm-remove' && props.selected) {
     const where = props.selected.scope === 'global' ? 'global' : shortenPath(props.selected.projectPath ?? '');
-    text = `Remove ${props.selected.name} from ${where}?  y confirm · n cancel`;
+    const symlinkInstall = props.selected.layout.kind === 'symlink' && props.selected.layout.target;
+    text = symlinkInstall
+      ? `Unlink ${props.selected.name} in ${where}? Only that install link is removed.  y / n`
+      : `Remove ${props.selected.name} from ${where}?  y confirm · n cancel`;
   }
   return (
     <Text color="gray" wrap="truncate">

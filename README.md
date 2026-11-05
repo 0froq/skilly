@@ -33,7 +33,7 @@ project_globs = ["~/code/0froq/**"]
 - 左侧按 `global` 和项目路径分组。状态标记留在技能行上（`?` 未跟踪，`!` 缺失，`↑` 有更新）
 - 扫描时只显示进度（当前路径和计数），不把 npm 警告或 list JSON 打到界面上
 - 右侧在简短元数据下面显示该技能 `SKILL.md` 正文（frontmatter 之后的 markdown）
-- 删除只复查该技能所在的全局目录或那一个项目，不再重扫所有 glob。命令退出成功但技能还在列表里时，保留这一项并标明没删掉
+- 删除只复查该技能所在的全局目录或那一个项目，不再重扫所有 glob。命令退出成功但技能还在列表里时，保留这一项并标明没删掉。若剩下的是规范路径上的未跟踪符号链接，只 `unlink` 这一条，不删除它指向的源目录
 
 `SKILLY_SKILLS_BIN` 可以指向本机的 `skills` 可执行文件，用来代替 `npx --yes skills`。
 
@@ -62,7 +62,7 @@ project_globs = ["~/code/0froq/**"]
 
 ## English
 
-skilly is a terminal UI over the Vercel skills CLI. It lists global skills and project skills discovered from `project_globs`, grouped under `global` and each project path. The scan view shows progress instead of npm warnings or list JSON. The detail pane shows a short metadata block and the selected skill's `SKILL.md` body, read from disk. Deleting a skill relists only that scope and keeps the row when it is still installed. It shows tracked status and whether a skill folder is a symlink or a real directory, and runs check, update, remove, and add through `npx skills`. It never passes `--copy`. The CLI itself copies only when every selected agent shares one directory, because there is no second path to symlink.
+skilly is a terminal UI over the Vercel skills CLI. It lists global skills and project skills discovered from `project_globs`, grouped under `global` and each project path. The scan view shows progress instead of npm warnings or list JSON. The detail pane shows a short metadata block and the selected skill's `SKILL.md` body, read from disk. Deleting a skill relists only that scope and keeps the row when it is still installed. If that remaining install is an untracked symlink at `.agents/skills/<name>`, skilly unlinks that entry only and leaves the source directory in place. It shows tracked status and whether a skill folder is a symlink or a real directory, and runs check, update, remove, and add through `npx skills`. It never passes `--copy`. The CLI itself copies only when every selected agent shares one directory, because there is no second path to symlink.
 
 ## License
 
